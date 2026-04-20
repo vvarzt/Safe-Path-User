@@ -63,37 +63,8 @@ expo-version/
 3  ถ้าขึ้น ✅ Server running on port 3000 แปลว่าถูกต้อง 
 ```
 
-### 2. คัดลอกไฟล์จาก expo-version
 
-คัดลอกไฟล์ทั้งหมดจากโฟลเดอร์ `expo-version/` ไปยังโปรเจค Expo ที่สร้างใหม่
-
-### 3. ติดตั้ง Dependencies
-
-```bash
-# Navigation
-npx expo install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs
-npx expo install react-native-screens react-native-safe-area-context
-
-# Icons
-npx expo install @expo/vector-icons
-
-# SVG
-npx expo install react-native-svg
-
-# Maps
-npx expo install react-native-maps
-
-# Date/Time Picker
-npx expo install @react-native-community/datetimepicker
-
-# Image Picker
-npx expo install expo-image-picker
-
-# Toast
-npm install react-native-toast-message
-```
-
-### 4. รันโปรเจค
+### 2. รันโปรเจค
 
 ```bash
 npx expo start
