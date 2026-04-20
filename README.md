@@ -48,11 +48,19 @@ expo-version/
 
 ## 🚀 การติดตั้ง
 
-### 1. สร้างโปรเจค Expo ใหม่
+### 1. คำสั่งติดตั้ง dependencies
 
-```bash
-npx create-expo-app patient-transport-app --template blank-typescript
-cd patient-transport-app
+ให้เปิด 2 Terminal
+
+```Terminal 1 รันแอพ
+1  npm install --force or --legacy-peer-deps
+2  npx expo install
+3  npm start   (รันโค้ด)
+```
+```Terminal 2  รัน Searching hospital
+1  cd backend  ตัวอย่าง PS C:\Users\atiwa\Downloads\SAFEPATH-main\backend> 
+2  node .\src\serverhospital.js
+3  ถ้าขึ้น ✅ Server running on port 3000 แปลว่าถูกต้อง 
 ```
 
 ### 2. คัดลอกไฟล์จาก expo-version
