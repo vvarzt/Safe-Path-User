@@ -146,7 +146,7 @@ export const UpcomingBooking: React.FC = () => {
           const data = doc.data() as BookingDocument;
           return { id: doc.id, ...data };
         })
-        .filter((booking) => booking.status !== 'cancelled')
+        .filter((booking) => booking.status !== 'cancelled' && booking.status !== 'completed')
         .map((booking) => ({
           id: booking.id,
           dateBooking: booking.dateBooking || '',
