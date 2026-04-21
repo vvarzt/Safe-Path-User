@@ -19,13 +19,13 @@ interface Upcoming {
 
 const statusLabels: Record<string, string> = {
   pending: 'กำลังดำเนินการ',
-  confirmed: 'ยืนยันแล้ว',
+  cancelled: 'ยกเลิกแล้ว',
   completed: 'สำเร็จแล้ว',
 };
 
 const statusColors: Record<string, string> = {
   pending: colors.warning,
-  confirmed: colors.primary,
+  cancelled: colors.destructive,
   completed: colors.success,
 };
 
@@ -102,22 +102,55 @@ export const UpcomingBooking: React.FC = () => {
     const query = db.collection('bookings')
       .where('userId', '==', currentUser.uid);
 
-    const unsubscribe = query.onSnapshot(snapshot => {
+    const unsubscribe = query.onSnapshot(async snapshot => {
       if (snapshot.empty) {
         setUpcomingList([]);
         return;
       }
 
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      // ✅ sync ทุก booking ที่ status เปลี่ยน (ครอบคลุมทั้ง added + modified)
+      const syncPromises = snapshot.docs.map(async (doc) => {
+        const data = doc.data() as BookingDocument;
+        const bookingStatus = data.status;
+        if (!bookingStatus) return;
+
+        const paymentStatus =
+          bookingStatus === 'completed' ? 'completed' :
+            bookingStatus === 'cancelled' ? 'cancelled' : 'pending';
+
+        try {
+          const paymentQuery = await db.collection('payments')
+            .where('bookingId', '==', doc.id)
+            .where('userId', '==', userId)
+            .get();
+
+          for (const paymentDoc of paymentQuery.docs) {
+            if (paymentDoc.data().status !== paymentStatus) {
+              await paymentDoc.ref.update({ status: paymentStatus });
+              console.log(`[SYNC] Payment ${paymentDoc.id}: → ${paymentStatus}`);
+            }
+          }
+        } catch (err) {
+          console.log('[SYNC_PAYMENT_ERROR]', err);
+        }
+      });
+
+      await Promise.all(syncPromises);
+
+      // แสดงเฉพาะที่ไม่ใช่ cancelled
       const pendingBookings = snapshot.docs
         .map(doc => {
           const data = doc.data() as BookingDocument;
           return { id: doc.id, ...data };
         })
-        .filter((booking) => booking.status === 'pending')
-        .map(booking => ({
+        .filter((booking) => booking.status !== 'cancelled')
+        .map((booking) => ({
           id: booking.id,
           dateBooking: booking.dateBooking || '',
-          timeBooking: booking.timeBooking ||'',
+          timeBooking: booking.timeBooking || '',
           from: booking.fromAddress || '',
           to: booking.toAddress || '',
           distance: booking.distance || 0,
@@ -177,6 +210,19 @@ export const UpcomingBooking: React.FC = () => {
             onPress: async () => {
               try {
                 await db.collection('bookings').doc(booking.id).update({ status: 'cancelled' });
+
+                // ✅ เพิ่ม where userId เข้าไปด้วย
+                const currentUserId = auth.currentUser?.uid;
+                const paymentQuery = await db.collection('payments')
+                  .where('bookingId', '==', booking.id)
+                  .where('userId', '==', currentUserId)  // ✅ เพิ่มตรงนี้
+                  .get();
+
+                if (!paymentQuery.empty) {
+                  const paymentDoc = paymentQuery.docs[0];
+                  await paymentDoc.ref.update({ status: 'cancelled' });
+                }
+
                 Alert.alert('ยกเลิกสำเร็จ', 'รายการการจองถูกยกเลิกแล้ว');
               } catch (error) {
                 console.log('[CANCEL_BOOKING_ERROR]', error);
@@ -305,13 +351,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   rightBar: {
-  position: 'absolute',
-  right: 0,
-  top: 0,
-  bottom: 0,
-  width: 10, // ปรับความหนาได้
-  backgroundColor: colors.primary,
-},
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 10, // ปรับความหนาได้
+    backgroundColor: colors.primary,
+  },
   cardSingle: {
     width: '100%',
   },
