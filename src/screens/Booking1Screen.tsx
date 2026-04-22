@@ -114,7 +114,7 @@ const Booking1Screen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const mapRef = useRef<any>(null);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [fromAddress, setFromAddress] = useState('');
+  const [fromAddress, setFromAddress] = useState<AddressWithLocation | null>(null);
   const [toAddress, setToAddress] = useState('');
   const [fromLocation, setFromLocation] = useState<GeoLocation | null>(null);
   const [toLocation, setToLocation] = useState<GeoLocation | null>(null);
@@ -202,14 +202,17 @@ const Booking1Screen: React.FC = () => {
   };
 
   const useCurrentLocationAsOrigin = () => {
-    if (!currentLocation) {
-      Alert.alert('ไม่พบตำแหน่ง', 'กรุณารอสักครู่แล้วลองใหม่อีกครั้ง');
-      return;
-    }
+    if (!currentLocation) return;
+
     setFromLocation(currentLocation);
-    setFromAddress(currentLocation.address || 'ตำแหน่งปัจจุบัน');
+
+    setFromAddress({
+      address: currentLocation.address || "ตำแหน่งปัจจุบัน",
+      lat: currentLocation.lat,
+      lng: currentLocation.lng,
+    });
+
     setShowFromSuggestions(false);
-    Alert.alert('สำเร็จ', 'ใช้ตำแหน่งปัจจุบันเป็นต้นทางแล้ว');
   };
 
 
@@ -283,7 +286,14 @@ const Booking1Screen: React.FC = () => {
 
     if (isOrigin) {
       setFromLocation(location);
-      setFromAddress(`${hospital.name}, ${hospital.address}`);
+
+      // ✅ เก็บครบ
+      setFromAddress({
+        address: location.address!,
+        lat: location.lat,
+        lng: location.lng,
+      });
+
       setShowFromSuggestions(false);
     } else {
       setToLocation(location);
@@ -325,13 +335,17 @@ const Booking1Screen: React.FC = () => {
       Alert.alert('แจ้งเตือน', 'กรุณาระบุสถานที่ต้นทางและปลายทาง');
       return;
     }
+
     if (!fromLocation || !toLocation) {
       Alert.alert('แจ้งเตือน', 'กรุณาเลือกสถานที่จาก dropdown');
       return;
     }
 
     const bookingData = {
-      fromAddress,
+      fromAddress: fromAddress.address, // ใช้แสดง
+      fromLat: fromAddress.lat,         // ✅ เก็บพิกัด
+      fromLng: fromAddress.lng,
+
       toAddress,
       fromLocation,
       toLocation,
@@ -339,7 +353,6 @@ const Booking1Screen: React.FC = () => {
       fare,
     };
 
-    // ✅ Log ข้อมูลการจอง
     console.log('[BOOKING_DATA]', bookingData);
 
     setPendingBooking(bookingData);
@@ -461,13 +474,11 @@ const Booking1Screen: React.FC = () => {
                     </View>
                     <View>
                       <TextInput
-                        placeholder="พิมพ์ชื่อโรงพยาบาล"
-                        value={fromAddress}
-                        onChangeText={handleFromAddressChange}
-                        onFocus={() => {
-                          setTimeout(() => {
-                            scrollViewRef.current?.scrollTo({ y: width * 0.75, animated: true });
-                          }, 300);
+                        placeholder="ที่อยู่ต้นทาง"
+                        value={fromAddress?.address || ""}
+                        onChangeText={(text) => {
+                          setFromAddress(null); // reset ก่อน (เพราะ user พิมพ์ใหม่)
+                          handleFromAddressChange(text);
                         }}
                         style={styles.textInput}
                       />

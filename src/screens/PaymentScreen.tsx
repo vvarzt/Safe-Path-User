@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import { RootStackParamList } from '../navigation/AppNavigator';
 import Button from '../components/ui/button';
-import colors from '../theme/colors';
 import { auth, db } from '../firebase';
-import { getPendingBooking, clearPendingBooking } from '../services/bookingStore';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { clearPendingBooking, getPendingBooking } from '../services/bookingStore';
+import colors from '../theme/colors';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -52,8 +52,20 @@ const PaymentScreen: React.FC = () => {
       // บันทึกการจองลง Firestore
       const bookingRef = await db.collection('bookings').add({
         userId: currentUser.uid,
-        fromAddress: bookingData.fromAddress || '',
-        toAddress: bookingData.toAddress || '',
+
+        // fromAddress: bookingData.fromAddress || '',
+        // toAddress: bookingData.toAddress || '',
+
+        // // ✅ ดึงจาก object
+        // fromLat: bookingData.fromLocation?.lat || 0,
+        // fromLng: bookingData.fromLocation?.lng || 0,
+        // toLat: bookingData.toLocation?.lat || 0,
+        // toLng: bookingData.toLocation?.lng || 0,
+
+        // หรือจะเก็บทั้ง object ก็ได้ (แนะนำ)
+        fromLocation: bookingData.fromLocation || null,
+        toLocation: bookingData.toLocation || null,
+
         dateBooking: bookingData.date || '',
         timeBooking: bookingData.time || '',
         passengerType: bookingData.passengerType || '',
@@ -98,7 +110,7 @@ const PaymentScreen: React.FC = () => {
       setLoading(false);
     }
   };
-
+  console.log('[DEBUG_BOOKING_DATA]', bookingData);
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>

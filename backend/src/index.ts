@@ -44,11 +44,15 @@ interface Booking {
   userId: string;
   fromAddress: string;
   toAddress: string;
+
+  fromLocation?: { lat: number; lng: number }; // ✅ เพิ่ม
+  toLocation?: { lat: number; lng: number };   // ✅ เพิ่ม
+
   date: string;
   time: string;
   passengerType?: string;
   equipment?: string[];
-  status: 'upcoming' | 'completed' | 'cancelled';
+  status: 'pending' | 'completed' | 'cancelled';
   createdAt: string;
 }
 
@@ -203,15 +207,32 @@ app.put('/api/users/me', authMiddleware, async (req: AuthedRequest, res: Respons
 
 // Bookings
 app.post('/api/bookings', authMiddleware, async (req: AuthedRequest, res: Response) => {
-  const { fromAddress, toAddress, date, time, passengerType, equipment } = req.body as Booking;
+  const {
+    fromAddress,
+    toAddress,
+    date,
+    time,
+    passengerType,
+    equipment,
+    fromLocation,   // ✅ เพิ่ม
+    toLocation      // ✅ เพิ่ม
+  } = req.body;
+
   if (!fromAddress || !toAddress || !date || !time) {
     return res.status(400).json({ message: 'fromAddress, toAddress, date, time are required' });
   }
+
   const id = genId();
+
   const bookingData = {
     userId: req.user!.id,
     fromAddress,
     toAddress,
+
+    // ✅ เพิ่ม lat lng
+    fromLocation: fromLocation || null,
+    toLocation: toLocation || null,
+
     date,
     time,
     passengerType: passengerType || '',
@@ -219,7 +240,9 @@ app.post('/api/bookings', authMiddleware, async (req: AuthedRequest, res: Respon
     status: 'upcoming' as const,
     createdAt: new Date().toISOString(),
   };
+
   await db.collection('bookings').doc(id).set(bookingData);
+
   res.status(201).json({ id, ...bookingData });
 });
 
