@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import Input from '../components/ui/input';
 import Button from '../components/ui/button';
-import colors from '../theme/colors';
+import Input from '../components/ui/input';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { setPendingBooking } from '../services/bookingStore';
+import colors from '../theme/colors';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -19,7 +19,7 @@ interface RadioOption {
 
 const Booking3Screen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const [passengerType, setPassengerType] = useState('elderly');
+  const [gender_Care, setgender_Care] = useState('male');
   const [accompaniedBy, setAccompaniedBy] = useState('wheelchair');
   const [otherAccompanied, setOtherAccompanied] = useState('');
 
@@ -30,23 +30,23 @@ const Booking3Screen: React.FC = () => {
     }
     
     setPendingBooking({
-      passengerType,
+      gender_Care,
       equipment,
     });
     navigation.navigate('Booking4');
   };
 
   const passengerOptions: RadioOption[] = [
-    { value: 'elderly', label: 'เหตุผู้สูงอายุ' },
-    { value: 'patient', label: 'เหตุผู้ป่วย' },
-    { value: 'disabled', label: 'ไม่สะดวก' },
+    { value: 'male', label: 'ชาย' },
+    { value: 'female', label: 'หญิง' },
+    { value: 'disabled', label: 'ไม่ระบุ' },
   ];
 
   const equipmentOptions: RadioOption[] = [
     { value: 'wheelchair', label: 'วีลแชร์' },
     { value: 'cane', label: 'ไม้เท้า' },
     { value: 'oxygen', label: 'ถังออกซิเจน' },
-    { value: 'stretcher', label: 'เปล' },
+    // { value: 'stretcher', label: 'เปล' },
   ];
 
   const steps = [
@@ -101,24 +101,24 @@ const Booking3Screen: React.FC = () => {
             <Ionicons name="people" size={40} color={colors.primary} />
           </View>
 
-          <Text style={styles.title}>เลือกผู้โดยสาร</Text>
-          <Text style={styles.subtitle}>เลือกผู้โดยสาร และผู้ติดตามที่ต้องการ</Text>
+          <Text style={styles.title}>เลือกผู้ดูแล</Text>
+          <Text style={styles.subtitle}>เลือกเพศ และอุปกรณ์ช่วยเหลือที่ต้องการ</Text>
 
           <View style={styles.form}>
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>เหตุผู้โดยสาร/คนป่วย</Text>
+              <Text style={styles.sectionLabel}>เพศของผู้ดูแล</Text>
               {passengerOptions.map((option) => (
                 <RadioButton
                   key={option.value}
-                  selected={passengerType === option.value}
-                  onPress={() => setPassengerType(option.value)}
+                  selected={gender_Care === option.value}
+                  onPress={() => setgender_Care(option.value)}
                   label={option.label}
                 />
               ))}
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>อุปกรณ์ช่วยเหลือที่ต้องการ</Text>
+              <Text style={styles.sectionLabel}>รายการอุปกรณ์สัมภาระของคุณ</Text>
               {equipmentOptions.map((option) => (
                 <RadioButton
                   key={option.value}

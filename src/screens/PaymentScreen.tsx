@@ -68,7 +68,7 @@ const PaymentScreen: React.FC = () => {
 
         dateBooking: bookingData.date || '',
         timeBooking: bookingData.time || '',
-        passengerType: bookingData.passengerType || '',
+        gender_Care: bookingData.gender_Care|| '',
         equipment: bookingData.equipment || [],
         distance: bookingData.distance || 0,
         fare: bookingData.fare || 0,

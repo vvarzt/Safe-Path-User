@@ -1,5 +1,5 @@
 {
-  "name": "patient-transport-app",
+  "name": "female-transport-app",
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -24,7 +24,7 @@
     "expo-linking": "~8.0.11",
     "expo-local-authentication": "~17.0.8",
     "expo-location": "~19.0.8",
-    "expo-notifications": "^0.32.15",
+    "expo-notifications": "^0.32.16",
     "expo-router": "~6.0.21",
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",

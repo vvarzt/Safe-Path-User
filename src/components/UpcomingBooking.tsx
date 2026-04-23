@@ -13,20 +13,22 @@ interface Upcoming {
   distance: number;
   fare: number;
   paymentMethod: string;
-  caregiverStatus: string;
+  status: string;
   equipment: string[];
 }
 
 const statusLabels: Record<string, string> = {
-  pending: 'กำลังดำเนินการ',
-  cancelled: 'ยกเลิกแล้ว',
+  pending: 'รอดำเนินการ',
+  accepted: 'รับงานแล้ว',
   completed: 'สำเร็จแล้ว',
+  cancelled: 'ยกเลิกแล้ว',
 };
 
 const statusColors: Record<string, string> = {
   pending: colors.warning,
-  cancelled: colors.destructive,
+  accepted: colors.primary,
   completed: colors.success,
+  cancelled: colors.destructive,
 };
 
 const thaiMonths: Record<string, number> = {
@@ -90,6 +92,8 @@ interface BookingDocument {
 
 export const UpcomingBooking: React.FC = () => {
   const [upcomingList, setUpcomingList] = useState<Upcoming[]>([]);
+  const activeStatuses = ['accepted', 'in_progress'];
+  const upcomingStatuses = ['pending'];
 
   useEffect(() => {
     const currentUser = auth.currentUser;
@@ -143,22 +147,26 @@ export const UpcomingBooking: React.FC = () => {
       // แสดงเฉพาะที่ไม่ใช่ cancelled
       const pendingBookings = snapshot.docs
         .map(doc => {
-          const data = doc.data() as BookingDocument;
-          return { id: doc.id, ...data };
+          const data = doc.data() as any;
+
+          return {
+            id: doc.id,
+
+            dateBooking: data.dateBooking || '',
+            timeBooking: data.timeBooking || '',
+
+            from: data.fromLocation?.address || '',
+            to: data.toLocation?.address || '',
+
+            distance: data.distance || 0,
+            fare: data.fare || 0,
+            paymentMethod: data.paymentMethod || 'ไม่ระบุ',
+
+            status: data.status || 'pending',
+            equipment: data.equipment || [],
+          };
         })
-        .filter((booking) => booking.status !== 'cancelled' && booking.status !== 'completed')
-        .map((booking) => ({
-          id: booking.id,
-          dateBooking: booking.dateBooking || '',
-          timeBooking: booking.timeBooking || '',
-          from: booking.fromAddress || '',
-          to: booking.toAddress || '',
-          distance: booking.distance || 0,
-          fare: booking.fare || 0,
-          paymentMethod: booking.paymentMethod || 'ไม่ระบุ',
-          caregiverStatus: booking.caregiverStatus || 'pending',
-          equipment: booking.equipment || [],
-        }))
+        .filter((b) => b.status !== 'cancelled' && b.status !== 'completed')
         .sort((a, b) => {
           const dateA = parseDate(a.dateBooking, a.timeBooking);
           const dateB = parseDate(b.dateBooking, b.timeBooking);
@@ -185,12 +193,15 @@ export const UpcomingBooking: React.FC = () => {
   }
 
   const BookingCard = ({ booking, isSingleCard = false }: { booking: Upcoming; isSingleCard?: boolean }) => {
-    const caregiverLabel = statusLabels[booking.caregiverStatus] || statusLabels.pending;
-    const badgeColor = statusColors[booking.caregiverStatus] || statusColors.pending;
+    const caregiverLabel = statusLabels[booking.status] || statusLabels.pending;
+    const badgeColor = statusColors[booking.status] || statusColors.pending;
 
     const handleCardPress = () => {
       const bookingIdShort = booking.id.slice(0, 6);
-      const equipmentLabel = booking.equipment.length > 0 ? booking.equipment.join(', ') : 'ไม่มี';
+      const equipmentLabel =
+        booking.equipment?.length > 0
+          ? booking.equipment.join(', ')
+          : 'ไม่มี';
       Alert.alert(
         'รายละเอียดการจอง',
         `รหัสการจอง: ${bookingIdShort}\nวันที่: ${booking.dateBooking}\nเวลา: ${booking.timeBooking}\n\nจาก: ${booking.from}\n\nถึง: ${booking.to}\n\nระยะทาง: ${booking.distance.toFixed(1)} กม.\nค่าบริการ: ${booking.fare.toLocaleString()} บาท\nวิธีชำระเงิน: ${booking.paymentMethod}\nอุปกรณ์เสริม: ${equipmentLabel}\n\nสถานะคนขับ: ${caregiverLabel}`,

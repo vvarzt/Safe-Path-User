@@ -18,7 +18,7 @@ interface DetailBooking {
   timeBooking: string;
   from: string;
   to: string;
-  passengerType: string;
+  gender_Care: string;
   equipment: string[];
   paymentMethod: string;
   status: string;
@@ -60,7 +60,7 @@ const BookingDetailScreen: React.FC = () => {
           timeBooking: b?.timeBooking || '',
           from: b?.fromAddress || '',
           to: b?.toAddress || '',
-          passengerType: b?.passengerType || '',
+          gender_Care: b?.gender_Care|| '',
           equipment: b?.equipment || [],
           paymentMethod: b?.paymentMethod || 'cash',
           status: b?.status || 'pending',
@@ -175,7 +175,7 @@ const BookingDetailScreen: React.FC = () => {
             <Ionicons name="person" size={20} color={colors.primary} />
             <View style={styles.detailInfo}>
               <Text style={styles.infoLabel}>ประเภทผู้โดยสาร</Text>
-              <Text style={styles.infoValue}>{booking.passengerType || '-'}</Text>
+              <Text style={styles.infoValue}>{booking.gender_Care|| '-'}</Text>
             </View>
           </View>
           {booking.equipment && booking.equipment.length > 0 && (

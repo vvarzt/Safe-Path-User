@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { RootStackParamList } from '../navigation/AppNavigator';
 import Button from '../components/ui/button';
-import colors from '../theme/colors';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { getPendingBooking } from '../services/bookingStore';
+import colors from '../theme/colors';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -31,8 +31,8 @@ const Booking4Screen: React.FC = () => {
   ];
 
   const passengerTypeLabel: Record<string, string> = {
-    elderly: 'ผู้สูงอายุ',
-    patient: 'ผู้ป่วย',
+    male: 'ผู้สูงอายุ',
+    female: 'ผู้ป่วย',
     disabled: 'ผู้พิการ',
   };
 
@@ -41,7 +41,7 @@ const Booking4Screen: React.FC = () => {
     { label: 'ถึง :', value: bookingData.toAddress || '-' },
     { label: 'วันที่ :', value: bookingData.date || '-' },
     { label: 'เวลา :', value: bookingData.time || '-' },
-    { label: 'ผู้โดยสาร :', value: passengerTypeLabel[bookingData.passengerType || ''] || '-' },
+    { label: 'ผู้โดยสาร :', value: passengerTypeLabel[bookingData.gender_Care|| ''] || '-' },
     { label: 'อุปกรณ์ :', value: bookingData.equipment?.join(', ') || '-' },
   ];
 

@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { auth, db } from '../firebase';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import colors from '../theme/colors';
-import { auth, db } from '../firebase';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -17,7 +17,7 @@ interface Booking {
   fromAddress: string;
   toAddress: string;
   status: string;
-  passengerType?: string;
+  gender_Care?: string;
   createdAt: string;
 }
 
@@ -124,10 +124,10 @@ const BookingHistoryScreen: React.FC = () => {
         </View>
       </View>
 
-      {item.passengerType && (
+      {item.gender_Care&& (
         <View style={styles.passengerInfo}>
           <Ionicons name="person" size={14} color={colors.mutedForeground} />
-          <Text style={styles.passengerText}>{item.passengerType}</Text>
+          <Text style={styles.passengerText}>{item.gender_Care}</Text>
         </View>
       )}
     </TouchableOpacity>

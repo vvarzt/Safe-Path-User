@@ -50,7 +50,7 @@ interface Booking {
 
   date: string;
   time: string;
-  passengerType?: string;
+  gender_Care?: string;
   equipment?: string[];
   status: 'pending' | 'completed' | 'cancelled';
   createdAt: string;
@@ -212,7 +212,7 @@ app.post('/api/bookings', authMiddleware, async (req: AuthedRequest, res: Respon
     toAddress,
     date,
     time,
-    passengerType,
+    gender_Care,
     equipment,
     fromLocation,   // ✅ เพิ่ม
     toLocation      // ✅ เพิ่ม
@@ -235,7 +235,7 @@ app.post('/api/bookings', authMiddleware, async (req: AuthedRequest, res: Respon
 
     date,
     time,
-    passengerType: passengerType || '',
+    gender_Care: gender_Care|| '',
     equipment: equipment || [],
     status: 'upcoming' as const,
     createdAt: new Date().toISOString(),
@@ -266,7 +266,7 @@ app.get('/api/bookings/:id', authMiddleware, async (req: AuthedRequest, res: Res
 });
 
 app.put('/api/bookings/:id', authMiddleware, async (req: AuthedRequest, res: Response) => {
-  const { fromAddress, toAddress, date, time, passengerType, equipment, status } = req.body as Partial<Booking>;
+  const { fromAddress, toAddress, date, time, gender_Care, equipment, status } = req.body as Partial<Booking>;
   if (status && !['upcoming', 'completed', 'cancelled'].includes(status)) {
     return res.status(400).json({ message: 'Invalid status' });
   }
@@ -279,7 +279,7 @@ app.put('/api/bookings/:id', authMiddleware, async (req: AuthedRequest, res: Res
   if (toAddress !== undefined) updateData.toAddress = toAddress;
   if (date !== undefined) updateData.date = date;
   if (time !== undefined) updateData.time = time;
-  if (passengerType !== undefined) updateData.passengerType = passengerType;
+  if (gender_Care!== undefined) updateData.gender_Care= gender_Care;
   if (equipment !== undefined) updateData.equipment = equipment;
   if (status !== undefined) updateData.status = status;
   if (Object.keys(updateData).length === 0) return res.json({ message: 'No changes' });
