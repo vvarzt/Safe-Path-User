@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { TextInput, Alert } from 'react-native';
 import {
   ActivityIndicator,
@@ -84,14 +84,29 @@ const HomeScreen: React.FC = () => {
   const [caregiver, setCaregiver] = useState<CaregiverInfo | null>(null);
   const [loadingCaregiver, setLoadingCaregiver] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
-  const currentStatus = (activeBooking as any)?.status;
-  const [prevStatus, setPrevStatus] = useState<string | null>(null);
-  const [prevUpdateCus, setPrevUpdateCus] = useState<string | null>(null);
+  const prevStatusRef = useRef<string | null>(null);
+  const prevUpdateCusRef = useRef<string | null>(null);
   const [showReview, setShowReview] = useState(false);
-  const [score, setScore] = useState(0);
+  const [score, setScore] = useState(5);
   const [comment, setComment] = useState("");
 
 
+  const displayStatusLabel = (status?: string, update_cus?: string) => {
+    if (update_cus === "received") return "กำลังไปปลายทาง";
+    if (update_cus === "destination") return "ถึงปลายทางแล้ว";
+    if (update_cus === "back") return "กำลังเดินทางกลับ";
+    if (update_cus === "wait_cus") return "รอการยืนยันจากคุณ";
+
+    if (status === "in_progress") return "กำลังไปรับคุณ";
+    if (status === "accepted") return "รับงานแล้ว";
+
+    return "กำลังดำเนินการ";
+  };
+
+  const currentStatus = displayStatusLabel(
+    activeBooking?.status,
+    activeBooking?.update_cus
+  );
 
   const handleSubmitReview = async () => {
     if (!activeBooking?.id) return;
@@ -132,16 +147,6 @@ const HomeScreen: React.FC = () => {
 
     const currentUser = auth.currentUser;
     if (!currentUser) return;
-
-    const createNotification = async (title: string, message: string) => {
-      await db.collection('notifications').add({
-        userId: currentUser.uid,
-        title,
-        message,
-        read: false,
-        createdAt: new Date(),
-      });
-    };
 
 
     const statusLabel = (status: string) => {
@@ -222,7 +227,7 @@ const HomeScreen: React.FC = () => {
           });
 
           // ✅ STATUS เดิม
-          if (prevStatus !== null && prevStatus !== newStatus) {
+          if (prevStatusRef.current !== null && prevStatusRef.current !== newStatus) {
             if (newStatus === "accepted") {
               sendNotification("ผู้ดูแลรับงานแล้ว", "ผู้ดูแลรับงานของคุณแล้ว กำลังเตรียมตัวเดินทาง");
             }
@@ -233,47 +238,53 @@ const HomeScreen: React.FC = () => {
           }
 
           // ✅ NEW: update_cus
-          if (prevUpdateCus !== null && prevUpdateCus !== newUpdateCus) {
+          // 🔥 trigger ตอน status เปลี่ยน
+          if (
+            prevUpdateCusRef.current !== null &&
+            prevUpdateCusRef.current !== newUpdateCus
+          ) {
+            switch (newUpdateCus) {
+              case "received":
+                sendNotification(
+                  "กำลังไปปลายทาง",
+                  "ผู้บริการกำลังพาคุณไปปลายทาง และใกล้จบงานแล้ว"
+                );
+                break;
 
+              case "destination":
+                sendNotification(
+                  "ถึงปลายทางแล้ว",
+                  "ผู้บริการพาคุณมาถึงปลายทางแล้ว และกำลังบริการคุณอยู่"
+                );
+                break;
 
-            if (newUpdateCus === "received") {
-              sendNotification(
-                "กำลังไปปลายทาง",
-                "ผู้บริการกำลังพาคุณไปยังปลายทาง"
+              case "back":
+                sendNotification(
+                  "กำลังเดินทางกลับ",
+                  "ผู้บริการกำลังพาคุณกลับบ้าน"
+                );
+                break;
 
-              ); sendNotification(
-                "จบการให้บริการ",
-                "กรุณาให้คะแนนผู้ดูแล"
-              );
-            }
-
-            if (newUpdateCus === "destination") {
-              sendNotification(
-                "ถึงปลายทางแล้ว",
-                "ผู้บริการพาคุณมาถึงปลายทางแล้ว และกำลังบริการคุณอยู่"
-              );
-            }
-
-            if (newUpdateCus === "back") {
-              sendNotification(
-                "กำลังเดินทางกลับ",
-                "ผู้บริการกำลังพาคุณกลับบ้าน"
-              );
-            }
-
-            if (newUpdateCus === "wait_cus" && prevUpdateCus !== "wait_cus") {
-              setShowReview(true);
-              sendNotification(
-                "จบการให้บริการ",
-                "กรุณายืนยันและให้คะแนนผู้ดูแล"
-              );
-
-              setShowReview(true); // ✅ เปิดหน้ารีวิวทันที
+              case "wait_cus":
+                sendNotification(
+                  "จบการให้บริการ",
+                  "กรุณายืนยันและให้คะแนนผู้ดูแล"
+                );
+                setShowReview(true);
+                break;
             }
           }
 
-          setPrevStatus(newStatus);
-          setPrevUpdateCus(newUpdateCus);
+          // 🔥 กรณี login ใหม่ (สำคัญ)
+          if (
+            prevUpdateCusRef.current === null &&
+            newUpdateCus === "wait_cus"
+          ) {
+            setShowReview(true);
+          }
+
+          prevStatusRef.current = newStatus;
+          prevUpdateCusRef.current = newUpdateCus;
 
           // โหลด caregiver
           if (data.caregiverId) {
@@ -308,7 +319,7 @@ const HomeScreen: React.FC = () => {
       notifUnsub();
       bookingUnsub();
     };
-  }, [prevStatus, prevUpdateCus]);
+  }, []);
 
 
   const displayName = user?.fullName ?? '';
@@ -405,22 +416,22 @@ const HomeScreen: React.FC = () => {
           <View style={[
             styles.activeBanner,
             {
-              backgroundColor: currentStatus === "in_progress" ? "#FEF9C3" : `${colors.success}15`,
-              borderColor: currentStatus === "in_progress" ? "#FACC15" : `${colors.success}40`
+              backgroundColor: activeBooking?.status === "in_progress"
+                ? "#FEF9C3"
+                : `${colors.success}15`,
+
+              borderColor: activeBooking?.status === "in_progress"
+                ? "#FACC15"
+                : `${colors.success}40`
             }
           ]}>
             <View style={[
               styles.activeDot,
-              { backgroundColor: currentStatus === "in_progress" ? "#FACC15" : colors.success }
+              { backgroundColor: activeBooking?.status === "in_progress" ? "#FACC15" : colors.success }
             ]} />
 
-            <Text style={[
-              styles.activeBannerText,
-              { color: currentStatus === "in_progress" ? "#CA8A04" : colors.success }
-            ]}>
-              {currentStatus === "in_progress"
-                ? "ผู้ดูแลกำลังเดินทางไปรับคุณ โปรดเตรียมตัวให้พร้อม !"
-                : "ผู้ดูแลรับงานของคุณแล้ว"}
+            <Text style={styles.activeBannerText}>
+              {currentStatus}
             </Text>
           </View>
 
@@ -972,3 +983,4 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
+
