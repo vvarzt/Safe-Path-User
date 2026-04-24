@@ -1,8 +1,68 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../firebase';
 import colors from '../theme/colors';
+import { Modal } from 'react-native';
+
+
+// ─── Config การแสดงแจ้งเตือนขณะแอปเปิดอยู่ ───
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,  // ✅ เพิ่ม
+    shouldShowList: true,    // ✅ เพิ่ม
+  }),
+});
+
+// ─── ขอสิทธิ์แจ้งเตือน ───
+async function requestNotificationPermission() {
+  const { status } = await Notifications.requestPermissionsAsync();
+  return status === 'granted';
+}
+
+// ─── schedule แจ้งเตือนก่อน 1 นาที ───
+async function scheduleBookingReminder(booking: Upcoming) {
+  const triggerDate = parseDate(booking.dateBooking, booking.timeBooking);
+  // const reminderTime = new Date(triggerDate.getTime() - 60 * 1000); // ลบ 1 นาที
+  const reminderTime = new Date(triggerDate.getTime() - 24 * 60 * 60 * 1000); // ลบ 1 วัน (สำหรับทดสอบ)
+  const now = new Date();
+
+  if (reminderTime <= now) return; // ผ่านไปแล้ว ไม่ต้อง schedule
+
+  // ยกเลิกของเดิมก่อน (กัน duplicate)
+  await cancelBookingReminder(booking.id);
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: `booking-reminder-${booking.id}`,
+    content: {
+      title: '🚗 การจองของคุณใกล้ถึงแล้ว!',
+      body: `อีก 1 วัน | ${booking.dateBooking} ${booking.timeBooking}\nจาก: ${booking.from}`,
+      data: { bookingId: booking.id },
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: reminderTime,
+    },
+  });
+
+  console.log(`[REMINDER_SCHEDULED] ${booking.id} → ${reminderTime.toISOString()}`);
+}
+// ─── ยกเลิก reminder ───
+async function cancelBookingReminder(bookingId: string) {
+  await Notifications.cancelScheduledNotificationAsync(`booking-reminder-${bookingId}`);
+}
+
+// ─── ยกเลิก reminder ทั้งหมด ───
+async function cancelAllReminders(bookingIds: string[]) {
+  await Promise.all(bookingIds.map((id) => cancelBookingReminder(id)));
+}
+
+
 
 interface Upcoming {
   id: string;
@@ -16,6 +76,96 @@ interface Upcoming {
   status: string;
   equipment: string[];
 }
+
+const DetailRow = ({ icon, label, value }: {
+  icon: any;
+  label: string;
+  value: string;
+}) => (
+  <View style={modalStyles.row}>
+    <Ionicons name={icon} size={18} color="#43B7A5" style={{ width: 24 }} />
+    <Text style={modalStyles.rowLabel}>{label}</Text>
+    <Text style={modalStyles.rowValue} numberOfLines={2}>{value}</Text>
+  </View>
+);
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+  },
+  bookingId: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginRight: 8,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 7,
+    gap: 10,
+  },
+  rowLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    width: 72,
+  },
+  rowValue: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '500',
+    flex: 1,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  confirmBtn: {
+    marginTop: 16,
+    backgroundColor: '#43B7A5',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  confirmText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+});
 
 const statusLabels: Record<string, string> = {
   pending: 'รอดำเนินการ',
@@ -49,24 +199,31 @@ const thaiMonths: Record<string, number> = {
 const parseDate = (dateStr: string, timeStr: string): Date => {
   if (!dateStr || !timeStr) return new Date(0);
 
-  // Handle Thai format: "DD เดือน YYYY" e.g., "20 เมษายน 2569"
   if (dateStr.includes(' ')) {
     const parts = dateStr.split(' ');
-    if (parts.length >= 3) {
-      const day = parseInt(parts[0]);
-      const monthName = parts[1];
-      const yearStr = parts[2];
+
+    // ✅ กรอง "ค.ศ." ออกก่อน แล้วเหลือแค่ตัวเลขและชื่อเดือน
+    const filtered = parts.filter(p => p !== 'ค.ศ.' && p.trim() !== '');
+    // filtered = ["24", "เมษายน", "2026"] หรือ ["27", "เมษายน", "2569"]
+
+    if (filtered.length >= 3) {
+      const day = parseInt(filtered[0]);
+      const monthName = filtered[1];
       const month = thaiMonths[monthName];
-      let year = parseInt(yearStr);
-      if (year > 2500) year -= 543; // Convert Buddhist year to Gregorian
+      let year = parseInt(filtered[2]);
+
+      // พ.ศ. → ค.ศ.
+      if (year > 2400) year -= 543;
+
       if (day && month && year) {
         const isoDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${timeStr}:00`;
-        return new Date(isoDate);
+        const result = new Date(isoDate);
+        // console.log(`[parseDate] "${dateStr} ${timeStr}" → ${result.toISOString()}`);   ตรวจสอบวันที่แปลง
+        return result;
       }
     }
   }
 
-  // Fallback to DD/MM/YYYY format
   const [day, month, year] = dateStr.split('/');
   if (day && month && year) {
     const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timeStr}:00`;
@@ -92,92 +249,135 @@ interface BookingDocument {
 
 export const UpcomingBooking: React.FC = () => {
   const [upcomingList, setUpcomingList] = useState<Upcoming[]>([]);
-  const activeStatuses = ['accepted', 'in_progress'];
-  const upcomingStatuses = ['pending'];
+  const [permissionGranted, setPermissionGranted] = useState(false);
+
+  // ─── ขอสิทธิ์ครั้งแรก ───
+  useEffect(() => {
+    requestNotificationPermission().then(setPermissionGranted);
+  }, []);
+
+  // // ─── schedule/cancel เมื่อ list เปลี่ยน ───
+  // // ❌ เดิม — ยกเลิกทุกตัวเมื่อ unmount (notification หายเมื่อออกจากหน้า)
+  // useEffect(() => {
+  //   if (!permissionGranted) return;
+  //   upcomingList.forEach((booking) => {
+  //     scheduleBookingReminder(booking);
+  //   });
+  //   return () => {
+  //     cancelAllReminders(upcomingList.map((b) => b.id)); // ❌ ไม่ควร cancel ตรงนี้
+  //   };
+  // }, [upcomingList, permissionGranted]);
+
+  // ✅ ใหม่ — cancel เฉพาะตัวที่หายออกจาก list (ถูกยกเลิก/เสร็จแล้ว)
+  const prevListRef = React.useRef<Upcoming[]>([]);
+
+  useEffect(() => {
+    if (!permissionGranted) return;
+
+    // schedule ทุกตัวใน list ปัจจุบัน
+    upcomingList.forEach((booking) => {
+      scheduleBookingReminder(booking);
+    });
+
+    // cancel เฉพาะตัวที่หายออกไปจาก list
+    const currentIds = new Set(upcomingList.map((b) => b.id));
+    const removedIds = prevListRef.current
+      .map((b) => b.id)
+      .filter((id) => !currentIds.has(id));
+
+    cancelAllReminders(removedIds);
+    prevListRef.current = upcomingList;
+  }, [upcomingList, permissionGranted]);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      console.log('[UPCOMING_USER_NOT_LOGGED_IN]');
       setUpcomingList([]);
       return;
     }
 
-    const query = db.collection('bookings')
-      .where('userId', '==', currentUser.uid);
+    const query = db.collection('bookings').where('userId', '==', currentUser.uid);
 
-    const unsubscribe = query.onSnapshot(async snapshot => {
+    const unsubscribe = query.onSnapshot(async (snapshot) => {
       if (snapshot.empty) {
         setUpcomingList([]);
         return;
       }
 
-      const userId = auth.currentUser?.uid;
-      if (!userId) return;
+      const now = new Date();
 
-      // ✅ sync ทุก booking ที่ status เปลี่ยน (ครอบคลุมทั้ง added + modified)
-      const syncPromises = snapshot.docs.map(async (doc) => {
-        const data = doc.data() as BookingDocument;
-        const bookingStatus = data.status;
-        if (!bookingStatus) return;
+      // ✅ 1. sync payment เมื่อ booking ถูก cancelled
+      const cancelPaymentPromises = snapshot.docs.map(async (doc) => {
+        const data = doc.data() as any;
 
-        const paymentStatus =
-          bookingStatus === 'completed' ? 'completed' :
-            bookingStatus === 'cancelled' ? 'cancelled' : 'pending';
+        if (data.status === 'cancelled') {
+          const bookingId = doc.id;
+          const userId = currentUser.uid;
 
-        try {
-          const paymentQuery = await db.collection('payments')
-            .where('bookingId', '==', doc.id)
+          const paymentQuery = await db
+            .collection('payments')
+            .where('bookingId', '==', bookingId)
             .where('userId', '==', userId)
             .get();
 
-          for (const paymentDoc of paymentQuery.docs) {
-            if (paymentDoc.data().status !== paymentStatus) {
-              await paymentDoc.ref.update({ status: paymentStatus });
-              console.log(`[SYNC] Payment ${paymentDoc.id}: → ${paymentStatus}`);
-            }
-          }
-        } catch (err) {
-          console.log('[SYNC_PAYMENT_ERROR]', err);
+          const updates = paymentQuery.docs.map((p) =>
+            p.ref.update({ status: 'cancelled' })
+          );
+
+          return Promise.all(updates);
         }
       });
 
-      await Promise.all(syncPromises);
+      await Promise.all(cancelPaymentPromises);
 
-      // แสดงเฉพาะที่ไม่ใช่ cancelled
-      const pendingBookings = snapshot.docs
-        .map(doc => {
+      // ✅ 2. auto cancel ถ้าเลยเวลา
+      const deletePromises = snapshot.docs
+        .map((doc) => {
           const data = doc.data() as any;
+          const bookingTime = parseDate(data.dateBooking || '', data.timeBooking || '');
+          const isExpired = bookingTime.getTime() > 0 && bookingTime <= now;
+          const isDeletable = data.status === 'pending' || data.status === 'accepted';
 
+          if (isExpired && isDeletable) {
+            console.log(`[AUTO_CANCEL] booking ${doc.id}`);
+            return db.collection('bookings').doc(doc.id).update({ status: 'cancelled' });
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      await Promise.all(deletePromises);
+
+      // ✅ 3. filter + sort
+      const pendingBookings = snapshot.docs
+        .map((doc) => {
+          const data = doc.data() as any;
           return {
             id: doc.id,
-
             dateBooking: data.dateBooking || '',
             timeBooking: data.timeBooking || '',
-
             from: data.fromLocation?.address || '',
             to: data.toLocation?.address || '',
-
             distance: data.distance || 0,
             fare: data.fare || 0,
             paymentMethod: data.paymentMethod || 'ไม่ระบุ',
-
             status: data.status || 'pending',
             equipment: data.equipment || [],
           };
         })
-        .filter((b) => b.status !== 'cancelled' && b.status !== 'completed')
+        .filter((b) => {
+          if (b.status === 'cancelled' || b.status === 'completed') return false;
+          const bookingTime = parseDate(b.dateBooking, b.timeBooking);
+          if (bookingTime.getTime() > 0 && bookingTime <= now) return false;
+          return true;
+        })
         .sort((a, b) => {
           const dateA = parseDate(a.dateBooking, a.timeBooking);
           const dateB = parseDate(b.dateBooking, b.timeBooking);
           return dateA.getTime() - dateB.getTime();
         });
 
-      console.log('[UPCOMING_BOOKINGS]', pendingBookings);
       setUpcomingList(pendingBookings);
-    }, (e) => {
-      console.log('[UPCOMING_LOAD_EXCEPTION]', e);
-      setUpcomingList([]);
     });
 
     return () => unsubscribe();
@@ -195,18 +395,20 @@ export const UpcomingBooking: React.FC = () => {
   const BookingCard = ({ booking, isSingleCard = false }: { booking: Upcoming; isSingleCard?: boolean }) => {
     const caregiverLabel = statusLabels[booking.status] || statusLabels.pending;
     const badgeColor = statusColors[booking.status] || statusColors.pending;
+    const [modalVisible, setModalVisible] = useState(false);
 
     const handleCardPress = () => {
-      const bookingIdShort = booking.id.slice(0, 6);
-      const equipmentLabel =
-        booking.equipment?.length > 0
-          ? booking.equipment.join(', ')
-          : 'ไม่มี';
-      Alert.alert(
-        'รายละเอียดการจอง',
-        `รหัสการจอง: ${bookingIdShort}\nวันที่: ${booking.dateBooking}\nเวลา: ${booking.timeBooking}\n\nจาก: ${booking.from}\n\nถึง: ${booking.to}\n\nระยะทาง: ${booking.distance.toFixed(1)} กม.\nค่าบริการ: ${booking.fare.toLocaleString()} บาท\nวิธีชำระเงิน: ${booking.paymentMethod}\nอุปกรณ์เสริม: ${equipmentLabel}\n\nสถานะคนขับ: ${caregiverLabel}`,
-        [{ text: 'ตกลง' }]
-      );
+      setModalVisible(true);
+    };
+    const paymentMap: Record<string, string> = {
+      cash: 'เงินสด',
+      promptpay: 'พร้อมเพย์',
+      credit: 'บัตรเครดิต',
+    };
+    const equipmentMap: Record<string, string> = {
+      wheelchair: 'รถเข็น',
+      stretcher: 'เปล',
+      oxygen: 'ออกซิเจน',
     };
 
     const handleDeleteBooking = () => {
@@ -296,6 +498,71 @@ export const UpcomingBooking: React.FC = () => {
             <Text style={styles.tapHint}>แตะเพื่อดูรายละเอียด</Text>
           </View>
         </View>
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={modalStyles.overlay}
+            activeOpacity={1}
+            onPress={() => setModalVisible(false)}
+          >
+            <TouchableOpacity activeOpacity={1} style={modalStyles.sheet}>
+              {/* Header */}
+              <View style={modalStyles.header}>
+                <Text style={modalStyles.title}>รายละเอียดการจอง</Text>
+                <Text style={modalStyles.bookingId}>#{booking.id.slice(0, 6).toUpperCase()}</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)} style={modalStyles.closeBtn}>
+                  <Ionicons name="close" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={modalStyles.divider} />
+
+              {/* Rows */}
+              <DetailRow icon="calendar-outline" label="วันที่" value={booking.dateBooking} />
+              <DetailRow icon="time-outline" label="เวลา" value={booking.timeBooking} />
+              <DetailRow icon="location-outline" label="จาก" value={booking.from} />
+              <DetailRow icon="navigate-outline" label="ถึง" value={booking.to} />
+              <DetailRow icon="resize-outline" label="ระยะทาง" value={`${booking.distance.toFixed(1)} กม.`} />
+              <DetailRow icon="cash-outline" label="ค่าบริการ" value={`฿${booking.fare.toLocaleString()}`} />
+              <DetailRow
+                icon="card-outline"
+                label="ชำระเงิน"
+                value={paymentMap[booking.paymentMethod] || booking.paymentMethod}
+              />
+              <DetailRow
+                icon="construct-outline"
+                label="อุปกรณ์"
+                value={
+                  booking.equipment?.length > 0
+                    ? booking.equipment.map((e) => equipmentMap[e] || e).join(', ')
+                    : 'ไม่มี'
+                }
+              />
+
+              <View style={modalStyles.divider} />
+
+              {/* Status Badge */}
+              <View style={modalStyles.statusRow}>
+                <Ionicons name="ellipse" size={10} color={badgeColor} />
+                <Text style={[modalStyles.statusText, { color: badgeColor }]}>
+                  {caregiverLabel}
+                </Text>
+              </View>
+
+              {/* Close Button */}
+              <TouchableOpacity
+                style={modalStyles.confirmBtn}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={modalStyles.confirmText}>ปิด</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
       </TouchableOpacity>
     );
   };
@@ -472,6 +739,9 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     marginTop: 6,
   },
+
+
+
 });
 
 export default UpcomingBooking;

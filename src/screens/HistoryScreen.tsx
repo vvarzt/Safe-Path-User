@@ -59,24 +59,29 @@ const HistoryScreen: React.FC = () => {
       .onSnapshot(snapshot => {
         const bookings = snapshot.docs.map(doc => {
           const data = doc.data();
+
+          const createdAt = data.createdAt
+            ? new Date(data.createdAt)
+            : new Date(0);
+
           return {
             id: doc.id,
             date: data.dateBooking || '',
             time: data.timeBooking || '',
-            from: data.fromAddress || '',
-            to: data.toAddress || '',
-            caregiver: data.caregiverStatus || 'pending',
+            from: data.fromLocation?.address || '',
+            to: data.toLocation?.address || '',
+            caregiver: data.caregiverId || '',
             price: data.fare || 0,
             status: data.status || 'pending',
-            rating: 0,
+            rating: data.score || 0,
+
+            createdAt, // ✅ เพิ่ม
           };
         });
 
         // เรียงตามวันที่และเวลาที่ใกล้ถึง (ascending)
         const sorted = bookings.sort((a, b) => {
-          const dateA = new Date(`${a.date}T${a.time}`);
-          const dateB = new Date(`${b.date}T${b.time}`);
-          return dateA.getTime() - dateB.getTime();
+          return b.createdAt.getTime() - a.createdAt.getTime(); // ล่าสุดขึ้นก่อน
         });
 
         setHistory(sorted);

@@ -247,7 +247,7 @@ const HomeScreen: React.FC = () => {
               case "received":
                 sendNotification(
                   "กำลังไปปลายทาง",
-                  "ผู้บริการกำลังพาคุณไปปลายทาง และใกล้จบงานแล้ว"
+                  "ผู้บริการกำลังพาคุณไปปลายทาง"
                 );
                 break;
 
@@ -261,7 +261,7 @@ const HomeScreen: React.FC = () => {
               case "back":
                 sendNotification(
                   "กำลังเดินทางกลับ",
-                  "ผู้บริการกำลังพาคุณกลับบ้าน"
+                  "ผู้บริการกำลังพาคุณกลับต้นทาง"
                 );
                 break;
 

@@ -15,6 +15,18 @@ interface InfoItem {
   value: string;
 }
 
+const formatGender = (gender?: string) => {
+  switch (gender) {
+    case 'male':
+      return 'ชาย';
+    case 'female':
+      return 'หญิง';
+    case 'other':
+      return 'อื่นๆ';
+    default:
+      return '-';
+  }
+};
 const ProfileInfo: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [infoItems, setInfoItems] = useState<InfoItem[] | null>(null);
@@ -40,7 +52,7 @@ const ProfileInfo: React.FC = () => {
           { icon: 'mail', label: 'อีเมล', value: data?.email || currentUser.email || '-' },
           { icon: 'call', label: 'เบอร์โทรศัพท์', value: data?.phone || '-' },
           { icon: 'calendar', label: 'วันเกิด', value: data?.birthDate || '-' },
-          { icon: 'person', label: 'เพศ', value: data?.gender || '-' },
+          { icon: 'person', label: 'เพศ', value: formatGender(data?.gender) },
           { icon: 'briefcase', label: 'อาชีพ', value: data?.occupation || '-' },
           { icon: 'location', label: 'ที่อยู่', value: data?.address || '-' },
         ];
