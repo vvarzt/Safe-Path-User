@@ -59,9 +59,20 @@ const searchHospitalsFromBackend = async (query: string): Promise<Hospital[]> =>
   if (!query.trim()) return [];
 
   try {
+    // ใช้ IP ที่ถูกต้อง - เปลี่ยนจาก 192.168.1.51 เป็น localhost หรือ IP backend จริง
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 วินาที timeout
+    
     const response = await fetch(
-      `http://192.168.1.51:3000/api/search-hospitals?q=${encodeURIComponent(query)}`
+      `http://192.168.1.40:1212/api/search-hospitals?q=${encodeURIComponent(query)}`,
+      { signal: controller.signal }
     );
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
     const data = await response.json();
 
@@ -75,7 +86,7 @@ const searchHospitalsFromBackend = async (query: string): Promise<Hospital[]> =>
       type: 'hospital',
     }));
   } catch (error) {
-    console.log('Backend API error:', error);
+    console.log('[BACKEND_API_ERROR]', error);
     return [];
   }
 };
@@ -231,45 +242,25 @@ const Booking1Screen: React.FC = () => {
     setSearchingHospitals(true);
 
     try {
-      // เรียก Backend API
+      // เรียก Backend API เท่านั้น
       const apiResults = await searchHospitalsFromBackend(query);
 
-      // รวมกับข้อมูล local ถ้าต้องการ
-      const localResults = hospitals.filter((hospital) =>
-        hospital.name.toLowerCase().includes(query.toLowerCase()) ||
-        hospital.fullName?.toLowerCase().includes(query.toLowerCase()) ||
-        hospital.address.toLowerCase().includes(query.toLowerCase())
-      );
-
-      // รวมผลลัพธ์และเอาเฉพาะไม่ซ้ำ
-      const allResults = [...apiResults, ...localResults];
-      const uniqueResults = allResults.filter(
-        (hospital, index, self) =>
-          index === self.findIndex((h) => h.name === hospital.name && h.address === hospital.address)
-      ).slice(0, 10); // จำกัด 10 รายการ
-
       if (isOrigin) {
-        setFromSuggestions(uniqueResults);
-        setShowFromSuggestions(uniqueResults.length > 0);
+        setFromSuggestions(apiResults);
+        setShowFromSuggestions(apiResults.length > 0);
       } else {
-        setToSuggestions(uniqueResults);
-        setShowToSuggestions(uniqueResults.length > 0);
+        setToSuggestions(apiResults);
+        setShowToSuggestions(apiResults.length > 0);
       }
     } catch (error) {
       console.log('Search hospitals error:', error);
-      // Fallback ใช้ข้อมูล local
-      const localResults = hospitals.filter((hospital) =>
-        hospital.name.toLowerCase().includes(query.toLowerCase()) ||
-        hospital.fullName?.toLowerCase().includes(query.toLowerCase()) ||
-        hospital.address.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 10);
-
+      // ไม่ใช้ fallback - ให้เป็น empty
       if (isOrigin) {
-        setFromSuggestions(localResults);
-        setShowFromSuggestions(localResults.length > 0);
+        setFromSuggestions([]);
+        setShowFromSuggestions(false);
       } else {
-        setToSuggestions(localResults);
-        setShowToSuggestions(localResults.length > 0);
+        setToSuggestions([]);
+        setShowToSuggestions(false);
       }
     } finally {
       setSearchingHospitals(false);

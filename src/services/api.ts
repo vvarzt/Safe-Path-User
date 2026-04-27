@@ -1,6 +1,6 @@
 import { getAuthToken } from './authStore';
 
-const BASE_URL = 'http://192.168.1.13:4001';
+const BASE_URL = 'http://192.168.1.13:1212';
 
 export const apiFetch = async (path: string, options: RequestInit = {}) => {
   const token = getAuthToken();

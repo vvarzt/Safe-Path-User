@@ -1,7 +1,7 @@
-import express from 'express';
 import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import express from 'express';
 
 dotenv.config();
 
@@ -22,6 +22,11 @@ app.get('/api/search-hospitals', async (req, res) => {
   try {
     const url = `https://maps.googleapis.com/maps/api/place/textsearch/json`;
 
+    if (!API_KEY) {
+      console.error('[ERROR] GOOGLE_PLACES_API_KEY is not set in .env');
+      return res.status(500).json({ error: 'API key not configured' });
+    }
+
     const response = await axios.get(url, {
       params: {
         query: `${query} hospital thailand`,
@@ -29,10 +34,10 @@ app.get('/api/search-hospitals', async (req, res) => {
         language: 'th',
         region: 'th',
       },
+      timeout: 8000, // 8 วินาที timeout
     });
 
-    // ✅ debug ตรงนี้
-    console.log(response.data);
+    console.log('[GOOGLE_API_RESPONSE]', response.data.results?.length || 0, 'results');
 
     const results = response.data.results || [];
 
@@ -41,7 +46,9 @@ app.get('/api/search-hospitals', async (req, res) => {
       place.types &&
       (
         place.types.includes('hospital') ||
-        place.types.includes('health')
+        place.types.includes('health') ||
+        place.types.includes('doctor') ||
+        place.types.includes('pharmacy')
       )
     );
 
@@ -55,8 +62,12 @@ app.get('/api/search-hospitals', async (req, res) => {
 
     res.json(hospitals);
   } catch (error) {
-    console.error('Google API error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to fetch hospitals' });
+    console.error('[GOOGLE_API_ERROR]', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    res.status(500).json({ error: 'Failed to fetch hospitals from Google Places API' });
   }
 });
 app.listen(process.env.PORT, () => {
