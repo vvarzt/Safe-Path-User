@@ -27,9 +27,9 @@ const toRad = (degrees: number): number => {
   return degrees * (Math.PI / 180);
 };
 
-// คำนวณค่าโดยสาร (50 บาท/กิโลเมตร)
+// คำนวณค่าโดยสาร (60 บาท/กิโลเมตร)
 export const calculateFare = (distance: number): number => {
-  const RATE_PER_KM = 50;
+  const RATE_PER_KM = 60;
   const fare = distance * RATE_PER_KM;
   return Math.ceil(fare); // ปัดขึ้น
 };

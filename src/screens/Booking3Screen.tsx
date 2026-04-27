@@ -20,7 +20,7 @@ interface RadioOption {
 const Booking3Screen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [gender_Care, setgender_Care] = useState('male');
-  const [accompaniedBy, setAccompaniedBy] = useState('wheelchair');
+  const [accompaniedBy, setAccompaniedBy] = useState('none');
   const [otherAccompanied, setOtherAccompanied] = useState('');
 
   const handleNext = () => {
@@ -28,7 +28,7 @@ const Booking3Screen: React.FC = () => {
     if (otherAccompanied) {
       equipment.push(otherAccompanied);
     }
-    
+
     setPendingBooking({
       gender_Care,
       equipment,
@@ -43,10 +43,10 @@ const Booking3Screen: React.FC = () => {
   ];
 
   const equipmentOptions: RadioOption[] = [
+    { value: 'none', label: 'ไม่มี' }, // 👈 เพิ่ม
     { value: 'wheelchair', label: 'วีลแชร์' },
     { value: 'cane', label: 'ไม้เท้า' },
     { value: 'oxygen', label: 'ถังออกซิเจน' },
-    // { value: 'stretcher', label: 'เปล' },
   ];
 
   const steps = [
